@@ -146,9 +146,12 @@ locals {
   create_openshift_instance_pools = true
 }
 
-data oci_identity_availability_domain availability_domain {
-  compartment_id = var.compartment_ocid
-  ad_number      = "1"
+data ad_availability_domains availability_domains {
+  tenancy_id = var.tenancy_ocid
+}
+
+locals {
+  ad_map             = { for ad in data.ad_availability_domains.availability_domains.ads : ad.name => ad.logical_ad }
 }
 
 ##Defined tag namespace. Use to mark instance roles and configure instance policy
@@ -681,7 +684,7 @@ resource oci_core_instance_configuration master_node_config {
   instance_details {
     instance_type = "compute"
     launch_details {
-      availability_domain = data.oci_identity_availability_domain.availability_domain.name
+      availability_domain = local.ad_map[each.value]
       compartment_id      = var.compartment_ocid
       create_vnic_details {
         assign_private_dns_record = "true"
@@ -733,7 +736,7 @@ resource oci_core_instance_pool master_nodes {
     vnic_selection   = "PrimaryVnic"
   }
   placement_configurations {
-    availability_domain = data.oci_identity_availability_domain.availability_domain.name
+    availability_domain = local.ad_map[each.value]
     primary_subnet_id   = oci_core_subnet.private.id
   }
   size       = var.master_count
@@ -752,7 +755,7 @@ resource oci_core_instance_configuration worker_node_config {
   instance_details {
     instance_type = "compute"
     launch_details {
-      availability_domain = data.oci_identity_availability_domain.availability_domain.name
+      availability_domain = local.ad_map[each.value]
       compartment_id      = var.compartment_ocid
       create_vnic_details {
         assign_private_dns_record = "true"
@@ -798,7 +801,7 @@ resource oci_core_instance_pool worker_nodes {
     vnic_selection   = "PrimaryVnic"
   }
   placement_configurations {
-    availability_domain = data.oci_identity_availability_domain.availability_domain.name
+    availability_domain = local.ad_map[each.value]
     primary_subnet_id   = oci_core_subnet.private.id
   }
   size       = var.worker_count
